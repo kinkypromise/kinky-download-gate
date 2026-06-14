@@ -14,6 +14,7 @@ export async function GET() {
     artistName: settings.artistName,
     labelName: settings.labelName,
     instagramUrl: settings.instagramUrl,
+    spotifyUrl: settings.spotifyUrl,
     accentColor: settings.accentColor,
     bpm: settings.bpm,
     consentText: settings.consentText,
@@ -26,6 +27,7 @@ export async function PATCH(req: NextRequest) {
     artistName?: string;
     labelName?: string;
     instagramUrl?: string;
+    spotifyUrl?: string;
     accentColor?: string;
     bpm?: number;
     consentText?: string;
@@ -41,6 +43,7 @@ export async function PATCH(req: NextRequest) {
   const artistName = typeof body.artistName === "string" ? body.artistName.trim() : undefined;
   const labelName = typeof body.labelName === "string" ? body.labelName.trim() : undefined;
   const instagramUrl = typeof body.instagramUrl === "string" ? body.instagramUrl.trim() : undefined;
+  const spotifyUrl = typeof body.spotifyUrl === "string" ? body.spotifyUrl.trim() : undefined;
   const accentColor = typeof body.accentColor === "string" ? body.accentColor.trim() : undefined;
   const bpm = typeof body.bpm === "number" ? body.bpm : undefined;
   const consentText = typeof body.consentText === "string" ? body.consentText.trim() : undefined;
@@ -59,6 +62,9 @@ export async function PATCH(req: NextRequest) {
   if (instagramUrl !== undefined && instagramUrl.length > 0 && !instagramUrl.startsWith("https://")) {
     return NextResponse.json({ error: "Instagram URL must start with https://" }, { status: 400 });
   }
+  if (spotifyUrl !== undefined && spotifyUrl.length > 0 && !spotifyUrl.startsWith("https://")) {
+    return NextResponse.json({ error: "Spotify URL must start with https://" }, { status: 400 });
+  }
   if (newPassword !== undefined && newPassword.length > 0 && newPassword.length < 10) {
     return NextResponse.json({ error: "New password must be at least 10 characters" }, { status: 400 });
   }
@@ -67,6 +73,7 @@ export async function PATCH(req: NextRequest) {
   if (artistName !== undefined) data.artistName = artistName;
   if (labelName !== undefined) data.labelName = labelName;
   if (instagramUrl !== undefined) data.instagramUrl = instagramUrl;
+  if (spotifyUrl !== undefined) data.spotifyUrl = spotifyUrl;
   if (accentColor !== undefined) data.accentColor = accentColor;
   if (bpm !== undefined) data.bpm = bpm;
   if (consentText !== undefined) data.consentText = consentText;

@@ -21,6 +21,7 @@ interface PublicSettings {
   artistName: string;
   labelName: string;
   instagramUrl: string;
+  spotifyUrl: string;
   accentColor: string;
   bpm: number;
   consentText: string;
@@ -34,6 +35,14 @@ function SoundCloudIcon() {
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true" className="h-5 w-5 shrink-0 fill-current">
       <path d="M13.4 11.1c.5 0 .9.4.9.9v8.8c0 .5-.4.9-.9.9s-.9-.4-.9-.9V12c0-.5.4-.9.9-.9Zm-3.2 1.7c.5 0 .9.4.9.9v7.1c0 .5-.4.9-.9.9s-.9-.4-.9-.9v-7.1c0-.5.4-.9.9-.9Zm-3.1 2.4c.5 0 .9.4.9.9v4.7c0 .5-.4.9-.9.9s-.9-.4-.9-.9v-4.7c0-.5.4-.9.9-.9Zm-3.1 2.1c.5 0 .9.4.9.9v2.6c0 .5-.4.9-.9.9s-.9-.4-.9-.9v-2.6c0-.5.4-.9.9-.9Zm12.3-7.1c.7-.3 1.6-.5 2.5-.5 3.5 0 6.4 2.7 6.7 6.1.4-.1.8-.2 1.2-.2 2.3 0 4.1 1.8 4.1 4s-1.8 4-4.1 4H16.3V10.2Z" />
+    </svg>
+  );
+}
+
+function SpotifyIcon() {
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true" className="h-5 w-5 shrink-0 fill-current">
+      <path d="M15.9 3.2c7.1 0 12.9 5.8 12.9 12.9S23 29 15.9 29 3 23.2 3 16.1 8.8 3.2 15.9 3.2Zm5.8 17.7c.6 1-.2 2.2-1.5 2.2-.6 0-1-.3-1.4-.9-1.1-1.8-3.4-2.5-5.8-2.5-1.1 0-2.2.1-3.3.4-.7.2-1.4-.3-1.6-1-.2-.7.2-1.4.9-1.6 1.4-.4 2.8-.5 4.2-.5 3.1 0 6 .9 7.7 2.9Zm1.9-4.1c.7 1.1-.2 2.5-1.6 2.5-.7 0-1.2-.3-1.7-1-1.6-2.5-4.8-3.5-8.1-3.5-1.4 0-2.8.2-4.1.6-.9.3-1.8-.3-2.1-1.2-.3-.9.2-1.9 1.1-2.2 1.7-.5 3.5-.8 5.3-.8 4.2 0 8.3 1.3 11.2 4.6Zm2-4.4c.9 1.4-.3 3.2-2.1 3.2-.9 0-1.5-.4-2.1-1.2-2.2-3.2-6.3-4.5-10.4-4.5-1.7 0-3.4.2-5 .7-1.1.3-2.2-.3-2.6-1.4-.3-1.1.3-2.2 1.4-2.5 2-.6 4.1-.9 6.2-.9 5.1 0 10.2 1.7 14.6 6Z" />
     </svg>
   );
 }
@@ -124,6 +133,7 @@ export default function GatePage() {
           artistName: "Artist",
           labelName: "",
           instagramUrl: "",
+          spotifyUrl: "",
           accentColor: "#f22e8c",
           bpm: 160,
           consentText: "By unlocking, you will follow {artist} on SoundCloud, like and repost this track, and post your comment.",
@@ -245,21 +255,34 @@ export default function GatePage() {
               link expires in <Countdown />
             </p>
 
-            {settings?.instagramUrl && (
+            {(settings?.instagramUrl || settings?.spotifyUrl) && (
               <div className="border-t border-dashed border-neutral-800 pt-6 text-center">
                 <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-600">
                   optional follows
                 </p>
                 <div className="mt-3 grid gap-3">
-                  <a
-                    href={settings.instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="social-btn flex items-center justify-center gap-3 border border-neutral-200 bg-neutral-100 px-5 py-4 font-mono text-xs font-bold uppercase tracking-[0.18em] text-[#050505]"
-                  >
-                    <InstagramIcon />
-                    Instagram
-                  </a>
+                  {settings?.instagramUrl && (
+                    <a
+                      href={settings.instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="social-btn flex items-center justify-center gap-3 border border-neutral-200 bg-neutral-100 px-5 py-4 font-mono text-xs font-bold uppercase tracking-[0.18em] text-[#050505]"
+                    >
+                      <InstagramIcon />
+                      Instagram
+                    </a>
+                  )}
+                  {settings?.spotifyUrl && (
+                    <a
+                      href={settings.spotifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="social-btn flex items-center justify-center gap-3 border border-neutral-200 bg-neutral-100 px-5 py-4 font-mono text-xs font-bold uppercase tracking-[0.18em] text-[#050505]"
+                    >
+                      <SpotifyIcon />
+                      Spotify
+                    </a>
+                  )}
                 </div>
               </div>
             )}

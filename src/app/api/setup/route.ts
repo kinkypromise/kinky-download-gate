@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     artistName?: string;
     labelName?: string;
     instagramUrl?: string;
+    spotifyUrl?: string;
     accentColor?: string;
     bpm?: number;
   };
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
     : "Your Artist Name";
   const labelName = typeof body.labelName === "string" ? body.labelName.trim() : "";
   const instagramUrl = typeof body.instagramUrl === "string" ? body.instagramUrl.trim() : "";
+  const spotifyUrl = typeof body.spotifyUrl === "string" ? body.spotifyUrl.trim() : "";
   const accentColor = typeof body.accentColor === "string" ? body.accentColor.trim() : "#f22e8c";
   const bpm = typeof body.bpm === "number" ? body.bpm : 160;
 
@@ -58,6 +60,9 @@ export async function POST(req: NextRequest) {
   if (instagramUrl && !instagramUrl.startsWith("https://")) {
     return NextResponse.json({ error: "Instagram URL must start with https://" }, { status: 400 });
   }
+  if (spotifyUrl && !spotifyUrl.startsWith("https://")) {
+    return NextResponse.json({ error: "Spotify URL must start with https://" }, { status: 400 });
+  }
 
   const adminPasswordHash = await bcrypt.hash(password, 12);
 
@@ -67,6 +72,7 @@ export async function POST(req: NextRequest) {
       artistName,
       labelName,
       instagramUrl,
+      spotifyUrl,
       accentColor,
       bpm,
       consentText: `By unlocking, you will follow ${artistName} on SoundCloud, like and repost this track, and post your comment.`,
@@ -79,6 +85,7 @@ export async function POST(req: NextRequest) {
       artistName,
       labelName,
       instagramUrl,
+      spotifyUrl,
       accentColor,
       bpm,
       consentText: `By unlocking, you will follow ${artistName} on SoundCloud, like and repost this track, and post your comment.`,

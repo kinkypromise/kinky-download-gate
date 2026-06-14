@@ -11,6 +11,7 @@ export default function SetupPage() {
     artistName: "",
     labelName: "",
     instagramUrl: "",
+    spotifyUrl: "",
     accentColor: "#f22e8c",
     bpm: 160,
   });
@@ -45,6 +46,10 @@ export default function SetupPage() {
       setError("Instagram URL must start with https://.");
       return;
     }
+    if (form.spotifyUrl && !form.spotifyUrl.startsWith("https://")) {
+      setError("Spotify URL must start with https://.");
+      return;
+    }
 
     setLoading(true);
     const res = await fetch("/api/setup", {
@@ -55,6 +60,7 @@ export default function SetupPage() {
         artistName: form.artistName || "Your Artist Name",
         labelName: form.labelName,
         instagramUrl: form.instagramUrl,
+        spotifyUrl: form.spotifyUrl,
         accentColor: form.accentColor,
         bpm: form.bpm,
       }),
@@ -136,7 +142,17 @@ export default function SetupPage() {
                 type="url"
                 value={form.instagramUrl}
                 onChange={(e) => updateField("instagramUrl", e.target.value)}
-                placeholder="https://instagram.com/yourhandle"
+                placeholder="https://instagram.com/your-artist-handle"
+                className="w-full border border-neutral-800 bg-neutral-950 px-4 py-3 text-neutral-100 outline-none transition-colors placeholder:text-neutral-700 focus:border-neutral-300"
+              />
+            </label>
+            <label className="block space-y-2">
+              <span className="font-mono text-xs uppercase tracking-[0.24em] text-neutral-500">spotify url</span>
+              <input
+                type="url"
+                value={form.spotifyUrl}
+                onChange={(e) => updateField("spotifyUrl", e.target.value)}
+                placeholder="https://open.spotify.com/artist/ABC123"
                 className="w-full border border-neutral-800 bg-neutral-950 px-4 py-3 text-neutral-100 outline-none transition-colors placeholder:text-neutral-700 focus:border-neutral-300"
               />
             </label>

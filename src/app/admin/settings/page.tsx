@@ -8,6 +8,7 @@ interface SettingsForm {
   artistName: string;
   labelName: string;
   instagramUrl: string;
+  spotifyUrl: string;
   accentColor: string;
   bpm: number;
   consentText: string;
@@ -21,6 +22,7 @@ export default function AdminSettingsPage() {
     artistName: "",
     labelName: "",
     instagramUrl: "",
+    spotifyUrl: "",
     accentColor: "#f22e8c",
     bpm: 160,
     consentText: "",
@@ -67,6 +69,10 @@ export default function AdminSettingsPage() {
       setError("Instagram URL must start with https://.");
       return;
     }
+    if (form.spotifyUrl && !form.spotifyUrl.startsWith("https://")) {
+      setError("Spotify URL must start with https://.");
+      return;
+    }
     if (form.newPassword) {
       if (form.newPassword.length < 10) {
         setError("New password must be at least 10 characters.");
@@ -82,6 +88,7 @@ export default function AdminSettingsPage() {
       artistName: form.artistName,
       labelName: form.labelName,
       instagramUrl: form.instagramUrl,
+      spotifyUrl: form.spotifyUrl,
       accentColor: form.accentColor,
       bpm: form.bpm,
       consentText: form.consentText,
@@ -158,7 +165,18 @@ export default function AdminSettingsPage() {
                 type="url"
                 value={form.instagramUrl}
                 onChange={(e) => updateField("instagramUrl", e.target.value)}
-                placeholder="https://instagram.com/yourhandle"
+                placeholder="https://instagram.com/your-artist-handle"
+                className="w-full border border-neutral-800 bg-neutral-950 px-4 py-3 text-neutral-100 outline-none transition-colors placeholder:text-neutral-700 focus:border-neutral-300"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="font-mono text-xs uppercase tracking-[0.24em] text-neutral-500">spotify url</span>
+              <input
+                type="url"
+                value={form.spotifyUrl}
+                onChange={(e) => updateField("spotifyUrl", e.target.value)}
+                placeholder="https://open.spotify.com/artist/ABC123"
                 className="w-full border border-neutral-800 bg-neutral-950 px-4 py-3 text-neutral-100 outline-none transition-colors placeholder:text-neutral-700 focus:border-neutral-300"
               />
             </label>

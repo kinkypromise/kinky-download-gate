@@ -11,6 +11,7 @@ export async function GET() {
     artistName: settings.artistName,
     labelName: settings.labelName,
     instagramUrl: settings.instagramUrl,
+    spotifyUrl: settings.spotifyUrl,
     accentColor: settings.accentColor,
     bpm: settings.bpm,
     consentText: settings.consentText,
