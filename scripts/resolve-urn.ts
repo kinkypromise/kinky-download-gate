@@ -6,7 +6,7 @@ import readline from "readline";
 import "dotenv/config";
 
 const SC_CLIENT_ID = process.env.SC_CLIENT_ID!;
-const SC_CLIENT_SECRET = process.env["SC_CLIENT_SECRET"]!;
+const SC_CLIENT_SECRET=process.env["SC_CLIENT_SECRET"]!;
 const SC_REDIRECT_URI = process.env.SC_REDIRECT_URI!;
 
 if (!SC_CLIENT_ID || !SC_CLIENT_SECRET || !SC_REDIRECT_URI) {
@@ -36,9 +36,9 @@ authUrl.searchParams.set("code_challenge_method", "S256");
 authUrl.searchParams.set("state", state);
 
 console.log("\n=== SoundCloud URN Resolver ===\n");
-console.log("1. Open this URL in a browser and sign in to SoundCloud:");
+console.log("1. Open this URL in your browser and log in to SoundCloud:");
 console.log("\n   " + authUrl.toString() + "\n");
-console.log("2. After the redirect, copy the code from the URL and paste it below.\n");
+console.log("2. After the redirect, copy the `code` value from the URL (everything between `code=` and `&state`) and paste it here.\n");
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -92,7 +92,7 @@ rl.question("Code: ", async (code) => {
     console.log("Username:", me.username);
     console.log("Permalink:", me.permalink_url);
     console.log("URN:", me.urn);
-    console.log("\nAdd this value to your .env:");
+    console.log("\nAdd the following value to your .env:");
     console.log(`SC_ARTIST_URN="${me.urn}"\n`);
   } catch (err) {
     console.error("Error:", err);
