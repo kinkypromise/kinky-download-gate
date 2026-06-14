@@ -21,8 +21,10 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Create directories for data and storage
-RUN mkdir -p data storage/downloads
+# Create directories for data and storage. In Docker these are mounted as
+# volumes, but mkdir -p ensures fresh containers can create the DB and first
+# download even if the host directories do not exist yet.
+RUN mkdir -p /app/data /app/storage/downloads
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./

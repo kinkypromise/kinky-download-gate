@@ -106,6 +106,12 @@ docker compose up --build
 
 ---
 
+### Docker note
+
+If you run via `docker compose up --build`, the compose file overrides `DATABASE_URL` with an absolute path (`file:/app/data/gate.db`) so the SQLite file is created inside the mounted `./data` volume. Without this override, Prisma would place it under `prisma/data/` in the container and it would be lost on every restart.
+
+The database and uploaded audio files live in the `./data` and `./storage` directories. Back them up; do not delete them between deploys. The container path for the DB is `/app/data/gate.db`.
+
 ## 5. First-run wizard
 
 1. Open `https://your-domain.com/setup` in a browser.

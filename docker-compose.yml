@@ -5,6 +5,11 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      # Absolute path so Prisma resolves it inside the mounted volume, not
+      # relative to prisma/schema.prisma. Without this the DB would live at
+      # /app/prisma/data/gate.db and be lost on container restart.
+      - DATABASE_URL=file:/app/data/gate.db
     volumes:
       - ./data:/app/data
       - ./storage:/app/storage
