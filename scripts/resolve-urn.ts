@@ -1,5 +1,5 @@
 /**
- * Setup-Script: Ermittelt die eigene SoundCloud User-URN via einmaligem PKCE-Flow.
+ * Setup script: resolves your SoundCloud user URN through a one-time PKCE flow.
  */
 import crypto from "crypto";
 import readline from "readline";
@@ -35,10 +35,10 @@ authUrl.searchParams.set("code_challenge", challenge);
 authUrl.searchParams.set("code_challenge_method", "S256");
 authUrl.searchParams.set("state", state);
 
-console.log("\n=== ESCA Download Gate -- URN Resolver ===\n");
-console.log("1. Oeffne folgende URL im Browser und logge dich bei SoundCloud ein:");
+console.log("\n=== SoundCloud URN Resolver ===\n");
+console.log("1. Open this URL in a browser and sign in to SoundCloud:");
 console.log("\n   " + authUrl.toString() + "\n");
-console.log("2. Nach dem Redirect kopiere den code aus der URL und fuege ihn hier ein.\n");
+console.log("2. After the redirect, copy the code from the URL and paste it below.\n");
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -46,7 +46,7 @@ rl.question("Code: ", async (code) => {
   rl.close();
   const trimmed = code.trim();
   if (!trimmed) {
-    console.error("Kein Code eingegeben. Abbruch.");
+    console.error("No code entered. Aborting.");
     process.exit(1);
   }
 
@@ -88,14 +88,14 @@ rl.question("Code: ", async (code) => {
       username: string;
       permalink_url: string;
     };
-    console.log("\n=== Erfolg ===");
+    console.log("\n=== Success ===");
     console.log("Username:", me.username);
     console.log("Permalink:", me.permalink_url);
     console.log("URN:", me.urn);
-    console.log("\nTrage folgenden Wert in deine .env ein:");
+    console.log("\nAdd this value to your .env:");
     console.log(`SC_ARTIST_URN="${me.urn}"\n`);
   } catch (err) {
-    console.error("Fehler:", err);
+    console.error("Error:", err);
     process.exit(1);
   }
 });
