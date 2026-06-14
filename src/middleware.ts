@@ -6,25 +6,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySessionTokenEdge } from "@/lib/session-edge";
 import { getSettings } from "@/lib/settings";
 
+function isStaticAsset(pathname: string): boolean {
+  return (
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/static/") ||
+    /\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2|css|js|json)$/.test(pathname)
+  );
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isApi = pathname.startsWith("/api/");
-  const isStaticAsset = pathname.startsWith("/_next/") || pathname.startsWith("/static/") || pathname.endsWith(".ico") || pathname.endsWith(".svg") || pathname.endsWith(".png") || pathname.endsWith(".jpg") || pathname.endsWith(".jpeg") || pathname.endsWith(".woff2");
 
-  // Setup wizard is always public; static assets are never gated
-  if (pathname.startsWith("/setup") || isStaticAsset) {
+  // Static assets and the setup API are never gated by configuration status.
+  if (isStaticAsset(pathname) || pathname === "/api/setup") {
     return NextResponse.next();
   }
 
-  // If the app is not configured yet, every other route redirects to /setup
-  // except the setup API itself.
-  if (!isApi || pathname !== "/api/setup") {
-    const settings = await getSettings();
-    if (!settings.isConfigured) {
-      return NextResponse.redirect(new URL("/setup", request.url));
+  const settings = await getSettings();
+
+  // Setup wizard is public only until the app is configured.
+  if (pathname.startsWith("/setup")) {
+    if (settings.isConfigured) {
+      return NextResponse.redirect(new URL("/admin", request.url));
     }
+    return NextResponse.next();
   }
 
+  // Until configured, every other route redirects to the setup wizard.
+  if (!settings.isConfigured) {
+    return NextResponse.redirect(new URL("/setup", request.url));
+  }
+
+  // From here on the app is configured: enforce admin session on admin routes.
   if (!pathname.startsWith("/admin") && !pathname.startsWith("/api/admin")) {
     return NextResponse.next();
   }
