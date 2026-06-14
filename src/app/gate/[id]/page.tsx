@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import EscaLogoGlitch from "@/components/EscaLogoGlitch";
+import LogoGlitch from "@/components/LogoGlitch";
 
 interface GateData {
   id: string;
@@ -17,11 +17,18 @@ interface OEmbedData {
   title?: string;
 }
 
+interface PublicSettings {
+  artistName: string;
+  labelName: string;
+  instagramUrl: string;
+  accentColor: string;
+  bpm: number;
+  consentText: string;
+  privacyText: string;
+}
+
 const NOISE_BG =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E\")";
-
-const SPOTIFY_ARTIST_URL =
-  "https://open.spotify.com/artist/2S6fVKHQP4ertjSR3uijuF?si=6Sne05pqTxOQMSkh2B74mQ&nd=1&dlsi=683e085df2134948";
 
 function SoundCloudIcon() {
   return (
@@ -35,14 +42,6 @@ function InstagramIcon() {
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true" className="h-5 w-5 shrink-0 fill-current">
       <path d="M10.2 3.8h11.6c3.5 0 6.4 2.9 6.4 6.4v11.6c0 3.5-2.9 6.4-6.4 6.4H10.2c-3.5 0-6.4-2.9-6.4-6.4V10.2c0-3.5 2.9-6.4 6.4-6.4Zm0 2.5c-2.2 0-3.9 1.8-3.9 3.9v11.6c0 2.2 1.8 3.9 3.9 3.9h11.6c2.2 0 3.9-1.8 3.9-3.9V10.2c0-2.2-1.8-3.9-3.9-3.9H10.2Zm5.8 4.8a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8Zm0 2.5a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8Zm6.8-3.9a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" />
-    </svg>
-  );
-}
-
-function SpotifyIcon() {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" className="h-5 w-5 shrink-0 fill-current">
-      <path d="M16 3.2a12.8 12.8 0 1 0 0 25.6 12.8 12.8 0 0 0 0-25.6Zm5.9 18.7c-.2.4-.7.5-1.1.3-3-1.8-6.8-2.2-11.2-1.2-.4.1-.9-.2-1-.6-.1-.4.2-.9.6-1 4.9-1.1 9.1-.6 12.4 1.4.4.3.5.8.3 1.1Zm1.6-3.5c-.3.4-.8.6-1.3.3-3.4-2.1-8.5-2.7-12.5-1.5-.5.1-1-.1-1.2-.6-.1-.5.1-1 .6-1.2 4.6-1.4 10.3-.7 14.1 1.7.5.3.6.9.3 1.3Zm.1-3.7c-4-2.4-10.7-2.6-14.6-1.4-.6.2-1.2-.2-1.4-.7-.2-.6.2-1.2.7-1.4 4.5-1.4 11.8-1.1 16.5 1.7.5.3.7 1 .4 1.5-.3.5-1 .7-1.6.3Z" />
     </svg>
   );
 }
@@ -79,6 +78,10 @@ function StepLabel({ n, children }: { n: string; children: React.ReactNode }) {
   );
 }
 
+function interpolateArtistToken(text: string, artistName: string): string {
+  return text.replace(/\{artist\}/g, artistName);
+}
+
 export default function GatePage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -89,6 +92,7 @@ export default function GatePage() {
 
   const [gate, setGate] = useState<GateData | null>(null);
   const [oembed, setOembed] = useState<OEmbedData | null>(null);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [commentLength, setCommentLength] = useState(0);
@@ -105,6 +109,27 @@ export default function GatePage() {
     } catch {
       // ignore
     }
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/settings/public")
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Failed to load settings");
+        return r.json();
+      })
+      .then((data) => setSettings(data))
+      .catch(() => {
+        // Fail open with defaults so the gate still renders
+        setSettings({
+          artistName: "Artist",
+          labelName: "",
+          instagramUrl: "",
+          accentColor: "#f22e8c",
+          bpm: 160,
+          consentText: "By unlocking, you will follow {artist} on SoundCloud, like and repost this track, and post your comment.",
+          privacyText: "We only use your SoundCloud login to follow {artist} and like, repost, and comment on this track — nothing else. No email access. No newsletter. No stored fan profile.",
+        });
+      });
   }, []);
 
   useEffect(() => {
@@ -149,6 +174,11 @@ export default function GatePage() {
   }
 
   const cover = oembed?.thumbnail_url;
+  const artistName = settings?.artistName || "Artist";
+  const accentColor = settings?.accentColor || "#f22e8c";
+  const bpm = settings?.bpm ?? 160;
+  const consentText = interpolateArtistToken(settings?.consentText || "", artistName);
+  const privacyText = interpolateArtistToken(settings?.privacyText || "", artistName);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050505] text-neutral-100 flex flex-col items-center justify-center px-5 py-14">
@@ -175,10 +205,10 @@ export default function GatePage() {
       <main className="relative w-full max-w-md gate-enter">
         <header className="space-y-4">
           <div className="-mx-5 h-36 sm:-mx-8 sm:h-44">
-            <EscaLogoGlitch className="h-full w-full" bpm={160} />
+            <LogoGlitch className="h-full w-full" bpm={bpm} accentColor={accentColor} />
           </div>
           <div className="flex items-center justify-between font-mono text-xs uppercase tracking-[0.3em] text-neutral-500">
-            <span>esca</span>
+            <span>{artistName.toLowerCase()}</span>
             <span className="flex-1 mx-4 border-t border-dashed border-neutral-800" />
             <span>free download</span>
           </div>
@@ -215,31 +245,24 @@ export default function GatePage() {
               link expires in <Countdown />
             </p>
 
-            <div className="border-t border-dashed border-neutral-800 pt-6 text-center">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-600">
-                optional follows
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <a
-                  href="https://instagram.com/_esca_"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="social-btn flex items-center justify-center gap-3 border border-neutral-200 bg-neutral-100 px-5 py-4 font-mono text-xs font-bold uppercase tracking-[0.18em] text-[#050505]"
-                >
-                  <InstagramIcon />
-                  Instagram
-                </a>
-                <a
-                  href={SPOTIFY_ARTIST_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="social-btn flex items-center justify-center gap-3 border border-neutral-200 bg-neutral-100 px-5 py-4 font-mono text-xs font-bold uppercase tracking-[0.18em] text-[#050505]"
-                >
-                  <SpotifyIcon />
-                  Spotify
-                </a>
+            {settings?.instagramUrl && (
+              <div className="border-t border-dashed border-neutral-800 pt-6 text-center">
+                <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-600">
+                  optional follows
+                </p>
+                <div className="mt-3 grid gap-3">
+                  <a
+                    href={settings.instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="social-btn flex items-center justify-center gap-3 border border-neutral-200 bg-neutral-100 px-5 py-4 font-mono text-xs font-bold uppercase tracking-[0.18em] text-[#050505]"
+                  >
+                    <InstagramIcon />
+                    Instagram
+                  </a>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : status === "error" ? (
           /* ───────────────── ERROR ───────────────── */
@@ -304,22 +327,23 @@ export default function GatePage() {
             </form>
 
             <div className="mt-8 space-y-3 border-t border-dashed border-neutral-800 pt-6">
-              <p className="text-center font-mono text-[11px] uppercase tracking-[0.15em] leading-relaxed text-neutral-500">
-                By unlocking, you will follow ESCA on SoundCloud, like and repost this
-                track, and post your comment.
-              </p>
-              <p className="text-center text-xs leading-relaxed text-neutral-600">
-                We only use your SoundCloud login to follow ESCA and like, repost, and
-                comment on this track — nothing else. No email access. No newsletter. No
-                stored fan profile.
-              </p>
+              {consentText && (
+                <p className="text-center font-mono text-[11px] uppercase tracking-[0.15em] leading-relaxed text-neutral-500">
+                  {consentText}
+                </p>
+              )}
+              {privacyText && (
+                <p className="text-center text-xs leading-relaxed text-neutral-600">
+                  {privacyText}
+                </p>
+              )}
             </div>
           </div>
         )}
 
         {/* Footer */}
         <div className="mt-12 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.3em] text-neutral-700">
-          <span>kinky promise</span>
+          <span>{settings?.labelName || ""}</span>
           <span>{new Date().getFullYear()}</span>
         </div>
       </main>

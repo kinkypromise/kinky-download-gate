@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <mask id="logo-mask">
+      <rect width="1920" height="1080" fill="white"/>
+      <text x="960" y="620" text-anchor="middle" font-family="Arial, sans-serif" font-size="260" font-weight="900" letter-spacing="40" fill="black">ARTIST</text>
+    </mask>
+  </defs>
+  <rect width="1920" height="1080" fill="#000000" mask="url(#logo-mask)"/>
+</svg>

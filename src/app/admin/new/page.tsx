@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import EscaLogoGlitch from "@/components/EscaLogoGlitch";
+import LogoGlitch from "@/components/LogoGlitch";
+
+interface PublicSettings {
+  artistName: string;
+  accentColor: string;
+  bpm: number;
+}
 
 const MAX_UPLOAD_BYTES = 600 * 1024 * 1024;
 const CHUNK_SIZE = 8 * 1024 * 1024;
@@ -26,7 +32,21 @@ export default function NewGatePage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
+  const [settings, setSettings] = useState<PublicSettings>({
+    artistName: "Artist",
+    accentColor: "#f22e8c",
+    bpm: 160,
+  });
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/settings/public")
+      .then(async (r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: PublicSettings) => setSettings(data))
+      .catch(() => {
+        // defaults already set
+      });
+  }, []);
 
   async function resolveUrnFromUrl(url: string) {
     if (!url.includes("soundcloud.com")) return;
@@ -168,10 +188,10 @@ export default function NewGatePage() {
       <div className="mx-auto max-w-3xl space-y-8">
         <header className="border-b border-neutral-900 pb-8">
           <div className="-mx-4 h-40 max-w-xl">
-            <EscaLogoGlitch className="h-full w-full" bpm={160} />
+            <LogoGlitch className="h-full w-full" bpm={settings.bpm} accentColor={settings.accentColor} />
           </div>
           <p className="mt-6 font-mono text-xs uppercase tracking-[0.32em] text-neutral-500">backend / new gate</p>
-          <h1 className="font-display mt-2 text-6xl uppercase leading-none tracking-tight">Create Gate</h1>
+          <h1 className="font-display mt-2 text-6xl uppercase leading-none tracking-tight">{settings.artistName} Gate</h1>
           <p className="mt-3 max-w-xl text-base text-neutral-500">
             Upload a WAV or MP3 in nginx-safe chunks, attach the SoundCloud track, and publish a private unlock page.
           </p>

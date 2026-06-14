@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import EscaLogoGlitch from "@/components/EscaLogoGlitch";
+import LogoGlitch from "@/components/LogoGlitch";
 
 interface Gate {
   id: string;
@@ -14,6 +14,12 @@ interface Gate {
   isActive: boolean;
   unlockCount: number;
   createdAt: string;
+}
+
+interface PublicSettings {
+  artistName: string;
+  accentColor: string;
+  bpm: number;
 }
 
 function formatBytes(bytes: number): string {
@@ -39,6 +45,20 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [settings, setSettings] = useState<PublicSettings>({
+    artistName: "Artist",
+    accentColor: "#f22e8c",
+    bpm: 160,
+  });
+
+  useEffect(() => {
+    fetch("/api/settings/public")
+      .then(async (r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: PublicSettings) => setSettings(data))
+      .catch(() => {
+        // defaults already set
+      });
+  }, []);
 
   useEffect(() => {
     fetch("/api/admin/gates")
@@ -93,21 +113,23 @@ export default function AdminDashboardPage() {
       <div className="mx-auto max-w-6xl space-y-8">
         <header className="grid gap-6 border-b border-neutral-900 pb-8 md:grid-cols-[360px_1fr_auto] md:items-end">
           <div className="-mx-4 h-40 md:mx-0">
-            <EscaLogoGlitch className="h-full w-full" bpm={160} />
+            <LogoGlitch className="h-full w-full" bpm={settings.bpm} accentColor={settings.accentColor} />
           </div>
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.32em] text-neutral-500">backend / gates</p>
-            <h1 className="font-display mt-2 text-6xl uppercase leading-none tracking-tight">Release Control</h1>
+            <h1 className="font-display mt-2 text-6xl uppercase leading-none tracking-tight">{settings.artistName} Gate</h1>
             <p className="mt-3 max-w-xl text-base text-neutral-500">
               Create SoundCloud unlock gates, track conversions, and keep downloadable assets attached to their records.
             </p>
           </div>
-          <Link href="/admin/new" className="gate-btn border border-neutral-100 bg-neutral-100 px-5 py-4 text-center font-mono text-base font-bold uppercase tracking-[0.24em] text-[#050505]">
-            New gate
-          </Link>
-          <Link href="/admin/settings" className="border border-neutral-800 px-5 py-4 text-center font-mono text-sm uppercase tracking-[0.2em] text-neutral-300 hover:border-neutral-600">
-            Settings
-          </Link>
+          <div className="flex flex-col gap-3">
+            <Link href="/admin/new" className="gate-btn border border-neutral-100 bg-neutral-100 px-5 py-4 text-center font-mono text-base font-bold uppercase tracking-[0.24em] text-[#050505]">
+              New gate
+            </Link>
+            <Link href="/admin/settings" className="border border-neutral-800 px-5 py-4 text-center font-mono text-sm uppercase tracking-[0.2em] text-neutral-300 hover:border-neutral-600">
+              Settings
+            </Link>
+          </div>
         </header>
 
         <section className="grid gap-3 md:grid-cols-3">

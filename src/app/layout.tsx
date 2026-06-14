@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Anton } from "next/font/google";
 import "./globals.css";
+import { getSettings } from "@/lib/settings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,10 +19,20 @@ const anton = Anton({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "ESCA — Free Download",
-  description: "Unlock free ESCA tracks via SoundCloud.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const settings = await getSettings();
+    return {
+      title: `${settings.artistName} — Free Download`,
+      description: `Unlock free ${settings.artistName} tracks via SoundCloud.`,
+    };
+  } catch {
+    return {
+      title: "Artist Gate — Free Download",
+      description: "Unlock free tracks via SoundCloud.",
+    };
+  }
+}
 
 export default function RootLayout({
   children,

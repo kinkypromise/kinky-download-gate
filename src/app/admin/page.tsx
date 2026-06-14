@@ -1,14 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import EscaLogoGlitch from "@/components/EscaLogoGlitch";
+import LogoGlitch from "@/components/LogoGlitch";
+
+interface PublicSettings {
+  artistName: string;
+  accentColor: string;
+  bpm: number;
+}
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState<PublicSettings>({
+    artistName: "Artist",
+    accentColor: "#f22e8c",
+    bpm: 160,
+  });
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/settings/public")
+      .then(async (r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: PublicSettings) => setSettings(data))
+      .catch(() => {
+        // defaults already set
+      });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,11 +55,11 @@ export default function AdminLoginPage() {
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.12),transparent_34%)]" />
       <section className="relative w-full max-w-sm border border-neutral-800 bg-neutral-950/70 p-6 shadow-[0_0_80px_-30px_rgba(255,255,255,0.35)] backdrop-blur">
         <div className="-mx-4 mb-6 h-36">
-          <EscaLogoGlitch className="h-full w-full" bpm={160} />
+          <LogoGlitch className="h-full w-full" bpm={settings.bpm} accentColor={settings.accentColor} />
         </div>
         <div className="mb-6 space-y-2">
           <p className="font-mono text-xs uppercase tracking-[0.32em] text-neutral-500">admin console</p>
-          <h1 className="font-display text-5xl uppercase leading-none tracking-tight">ESCA Gate</h1>
+          <h1 className="font-display text-5xl uppercase leading-none tracking-tight">{settings.artistName} Gate</h1>
           <p className="text-base text-neutral-500">Manage private SoundCloud unlocks and downloadable files.</p>
         </div>
 

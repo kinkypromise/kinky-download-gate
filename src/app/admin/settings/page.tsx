@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import LogoGlitch from "@/components/LogoGlitch";
 
 interface SettingsForm {
   artistName: string;
@@ -119,8 +120,11 @@ export default function AdminSettingsPage() {
     <main className="min-h-screen bg-[#050505] px-5 py-8 text-neutral-100">
       <div className="mx-auto max-w-3xl space-y-8">
         <header className="border-b border-neutral-900 pb-6">
+          <div className="mb-4 h-24">
+            <LogoGlitch className="h-full w-full" bpm={form.bpm} accentColor={form.accentColor} />
+          </div>
           <p className="font-mono text-xs uppercase tracking-[0.32em] text-neutral-500">backend / settings</p>
-          <h1 className="font-display mt-2 text-6xl uppercase leading-none tracking-tight">Settings</h1>
+          <h1 className="font-display mt-2 text-6xl uppercase leading-none tracking-tight">{form.artistName} Gate</h1>
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-6">

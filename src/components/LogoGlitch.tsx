@@ -4,31 +4,31 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 /**
- * ESCA logo — glitch / rave variant (Three.js).
+ * LogoGlitch — Three.js shader mask for a black-frame + transparent-cutout logo.
  *
- * Same mask principle as EscaLogoCanvas (letters are knocked out of a black
- * frame, used as an alpha mask), but instead of a calm flow field the letters
- * are driven by a hard-techno glitch aesthetic:
- *   - horizontal slice displacement (datamosh-style row shifting)
+ * Loads /logo.svg from the public folder, knocks it out as an alpha mask, and
+ * drives it with a glitch/rave aesthetic:
+ *   - horizontal slice displacement
  *   - RGB chromatic aberration that breathes
- *   - a 160 BPM beat envelope that spikes the glitch on every beat
+ *   - a BPM-driven beat envelope
  *   - scanlines + occasional full-frame RGB tear
- * Pink/magenta neon core with a cyan ghost edge.
  *
- * Drop-in: <EscaLogoGlitch className="..." bpm={160} />. Fills its parent,
- * pointer-events disabled, aria-hidden. Respects prefers-reduced-motion
- * (renders a single mostly-static frame with no beat pulsing).
+ * Props:
+ *   - bpm: beat tempo (default 160)
+ *   - accentColor: hex color string (default #f22e8c) used for the core glow
+ *
+ * Fills its parent, pointer-events disabled, aria-hidden. Respects
+ * prefers-reduced-motion by rendering a single mostly-static frame.
  *
  * Requires: npm i three  (and: npm i -D @types/three)
  */
-
-const LOGO_B64 = "PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pgo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDIwMDEwOTA0Ly9FTiIKICJodHRwOi8vd3d3LnczLm9yZy9UUi8yMDAxL1JFQy1TVkctMjAwMTA5MDQvRFREL3N2ZzEwLmR0ZCI+CjxzdmcgdmVyc2lvbj0iMS4wIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiB3aWR0aD0iMTkyMC4wMDAwMDBwdCIgaGVpZ2h0PSIxMDgwLjAwMDAwMHB0IiB2aWV3Qm94PSIwIDAgMTkyMC4wMDAwMDAgMTA4MC4wMDAwMDAiCiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWlkWU1pZCBtZWV0Ij4KCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAuMDAwMDAwLDEwODAuMDAwMDAwKSBzY2FsZSgwLjEwMDAwMCwtMC4xMDAwMDApIgpmaWxsPSIjMDAwMDAwIiBzdHJva2U9Im5vbmUiPgo8cGF0aCBkPSJNMCA1NDAwIGwwIC01NDAwIDk2MDAgMCA5NjAwIDAgMCA1NDAwIDAgNTQwMCAtOTYwMCAwIC05NjAwIDAgMAotNTQwMHogbTczMzkgMTg5MyBjMCAtMTAgLTI0IC0xNDggLTUyIC0zMDggbC01MiAtMjkwIC04MjQgLTUgLTgyNSAtNSAtNTIKLTMwMCBjLTI5IC0xNjUgLTUzIC0zMDggLTUzIC0zMTcgLTEgLTE3IDQ0IC0xOCA4MTIgLTE4IDQ0OCAwIDgxNiAtMiA4MTkgLTUKMiAtMyAtMjEgLTE0MiAtNTEgLTMxMCBsLTU2IC0zMDUgLTgyMiAwIGMtNDUzIDAgLTgyMyAtMyAtODIzIC04IDAgLTQgLTI1Ci0xNDkgLTU1IC0zMjIgLTMwIC0xNzMgLTU1IC0zMTYgLTU1IC0zMTcgMCAtMiAzNjkgLTMgODIwIC0zIDY0OSAwIDgyMCAtMwo4MjAgLTEyIDAgLTcgLTIzIC0xNDcgLTUyIC0zMTAgbC01MiAtMjk4IC0xMDUwIDAgLTEwNTEgMCAtNTUgMjYgYy0xMTggNTUKLTE4MCAxMzQgLTE4MCAyMjkgMCAzNyA0MjUgMjQ4NyA0OTIgMjgzOCBsMTEgNTcgMTE5MyAwIGMxMTMxIDAgMTE5NCAtMSAxMTkzCi0xN3ogbTI2MzYgLTUgYy0yIC0xMyAtMjUgLTE0MCAtNTAgLTI4MyAtMjUgLTE0MyAtNDggLTI3MiAtNTEgLTI4NyBsLTYgLTI4Ci04MjEgLTIgLTgyMSAtMyAtNTIgLTMwMCBjLTI5IC0xNjUgLTUzIC0zMDggLTUzIC0zMTcgLTEgLTE2IDQzIC0xOCA2NzIgLTIwCmw2NzIgLTMgNjIgLTI5IGM4OCAtNDAgMTU4IC0xMTkgMTc3IC0xOTkgNCAtMTcgLTQ0IC0zMTYgLTEzNCAtODI1IC03OCAtNDM4Ci0xNDMgLTgwNSAtMTQ2IC04MTQgLTUgLTE3IC03MSAtMTggLTExOTUgLTE4IC05NDQgMCAtMTE4OSAzIC0xMTg5IDEzIDAgNiAyMwoxNDYgNTIgMzEwIGw1MiAyOTcgODIxIDAgODIxIDAgNTMgMzA4IGMyOSAxNjkgNTUgMzE1IDU3IDMyNCA1IDE3IC0zNiAxOAotNjgzIDIwIGwtNjg4IDMgLTQ3IDIzIGMtOTUgNDcgLTE2OCAxNDMgLTE2OCAyMjIgMCAyMiA2MyAzOTYgMTQwIDgzMCA3NyA0MzUKMTQwIDc5MyAxNDAgNzk1IDAgMyA1MzggNSAxMTk1IDUgbDExOTUgMCAtNSAtMjJ6IG0yNjM0IDUgYzAgLTEwIC0yNCAtMTQ4Ci01MiAtMzA4IGwtNTIgLTI5MCAtODI0IC01IC04MjQgLTUgLTE2MyAtOTIwIGMtOTAgLTUwNiAtMTY2IC05MzUgLTE2OSAtOTUyCmwtNiAtMzMgODIxIDAgYzY0OSAwIDgyMCAtMyA4MjAgLTEyIDAgLTcgLTIzIC0xNDcgLTUyIC0zMTAgbC01MiAtMjk4IC0xMDUwCjAgLTEwNTEgMCAtNTUgMjYgYy0xMTggNTUgLTE4MCAxMzQgLTE4MCAyMjkgMCAzNyA0MjUgMjQ4NyA0OTIgMjgzOCBsMTEgNTcKMTE5MyAwIGMxMTMxIDAgMTE5NCAtMSAxMTkzIC0xN3ogbTIzOTggLTEgYzEwOSAtNDQgMTkyIC0xNDIgMTkzIC0yMjcgMCAtMjIKLTExMyAtNjg1IC0yNTIgLTE0NzIgbC0yNTIgLTE0MzMgLTM3MyAwIC0zNzIgMCA1IDI4IGMzIDE1IDM2IDE5OCA3MyA0MDcgbDY4CjM4MCAtNDQ2IDMgYy0yNDQgMSAtNDQ4IC0xIC00NTIgLTUgLTMgLTUgLTM2IC0xNzkgLTczIC0zODggLTM3IC0yMDkgLTcwCi0zOTAgLTczIC00MDIgbC01IC0yMyAtMzY5IDAgYy0zMjAgMCAtMzY5IDIgLTM2OSAxNSAwIDggMTI0IDcxNSAyNzUgMTU3MAoxNTEgODU2IDI3NSAxNTU4IDI3NSAxNTYxIDAgMiA0NzQgNCAxMDUzIDMgOTY1IDAgMTA1NSAtMiAxMDk0IC0xN3oiLz4KPHBhdGggZD0iTTEzNDk1IDY2NzggYy01IC0xOCAtMTg1IC0xMDUyIC0xODUgLTEwNjYgMCAtOSAxMDggLTEyIDQ1MCAtMTIgMjY5CjAgNDUwIDQgNDUwIDkgMCAxMSAxNzcgMTAyNiAxODUgMTA1OSBsNSAyMiAtNDUwIDAgYy0zNTIgMCAtNDUxIC0zIC00NTUgLTEyeiIvPgo8L2c+Cjwvc3ZnPgo=";
 
 const VERT = `varying vec2 v; void main(){ v = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
 const FRAG = `precision highp float;
 uniform float u_time, u_aspect, u_intro, u_beat;
 uniform vec2 u_res, u_pointer;
+uniform vec3 u_accent;
 uniform sampler2D u_mask;
 
 float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
@@ -64,7 +64,7 @@ void main(){
   float core = max(max(lR, lG), lB);
   float ghost = lR*0.20 + lG*0.38 + lB*0.20;
   vec3 col = vec3(ghost);
-  col = mix(col, vec3(0.72), core*0.46);
+  col = mix(col, u_accent, core*0.46);
 
   float flick = step(0.5, hash1(floor(t*20.0)+band))*0.25*u_beat;
   col += core*flick;
@@ -84,14 +84,29 @@ void main(){
   gl_FragColor = vec4(col*mask, alpha);
 }`;
 
-export default function EscaLogoGlitch({
+function hexToRgbNormalized(hex: string): { r: number; g: number; b: number } {
+  const sanitized = hex.replace("#", "");
+  const r = parseInt(sanitized.substring(0, 2), 16) / 255;
+  const g = parseInt(sanitized.substring(2, 4), 16) / 255;
+  const b = parseInt(sanitized.substring(4, 6), 16) / 255;
+  return { r, g, b };
+}
+
+export default function LogoGlitch({
   className,
   bpm = 160,
+  accentColor = "#f22e8c",
 }: {
   className?: string;
   bpm?: number;
+  accentColor?: string;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const bpmRef = useRef(bpm);
+  const accentRef = useRef(accentColor);
+
+  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { accentRef.current = accentColor; }, [accentColor]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -109,6 +124,7 @@ export default function EscaLogoGlitch({
     renderer.domElement.style.height = "100%";
     renderer.domElement.style.display = "block";
 
+    const rgb = hexToRgbNormalized(accentRef.current);
     const uniforms = {
       u_time: { value: 0 },
       u_res: { value: new THREE.Vector2() },
@@ -117,6 +133,7 @@ export default function EscaLogoGlitch({
       u_intro: { value: 0 },
       u_beat: { value: 0 },
       u_pointer: { value: new THREE.Vector2(0.5, 0.5) },
+      u_accent: { value: new THREE.Vector3(rgb.r, rgb.g, rgb.b) },
     };
 
     const mat = new THREE.ShaderMaterial({
@@ -127,6 +144,7 @@ export default function EscaLogoGlitch({
     scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
 
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       const c = document.createElement("canvas");
       c.width = 1920;
@@ -139,7 +157,7 @@ export default function EscaLogoGlitch({
       tex.magFilter = THREE.LinearFilter;
       uniforms.u_mask.value = tex;
     };
-    img.src = "data:image/svg+xml;base64," + LOGO_B64;
+    img.src = "/logo.svg";
 
     const onMove = (e: PointerEvent) => {
       uniforms.u_pointer.value.set(
@@ -160,7 +178,6 @@ export default function EscaLogoGlitch({
     ro.observe(mountEl);
     resize();
 
-    const beatLen = 60 / bpm;
     const start = performance.now();
     let raf = 0;
     function loop(now: number) {
@@ -170,9 +187,12 @@ export default function EscaLogoGlitch({
       if (reduce) {
         uniforms.u_beat.value = 0;
       } else {
+        const beatLen = 60 / bpmRef.current;
         const phase = (t % beatLen) / beatLen;
         uniforms.u_beat.value = Math.pow(1 - phase, 3);
       }
+      const rgb = hexToRgbNormalized(accentRef.current);
+      uniforms.u_accent.value.set(rgb.r, rgb.g, rgb.b);
       renderer.render(scene, camera);
       if (!reduce) raf = requestAnimationFrame(loop);
     }
@@ -189,7 +209,7 @@ export default function EscaLogoGlitch({
         mountEl.removeChild(renderer.domElement);
       }
     };
-  }, [bpm]);
+  }, []);
 
   return (
     <div
