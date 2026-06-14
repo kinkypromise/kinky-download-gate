@@ -48,3 +48,4 @@ next-env.d.ts
 # Database & local storage (sensitive or large files)
 /data
 /storage
+/prisma/data
