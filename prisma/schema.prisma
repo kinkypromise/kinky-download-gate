@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Gate {
+  id            String   @id @default(uuid())
+  title         String
+  scTrackUrn    String
+  scTrackUrl    String
+  fileName      String
+  fileSizeBytes Int
+  isActive      Boolean  @default(true)
+  unlockCount   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Settings {
+  id              Int      @id @default(1)
+  artistName      String   @default("Your Artist Name")
+  labelName       String   @default("")
+  instagramUrl    String   @default("")
+  accentColor     String   @default("#f22e8c")
+  bpm             Int      @default(160)
+  consentText     String   @default("By unlocking, you will follow {artist} on SoundCloud, like and repost this track, and post your comment.")
+  privacyText     String   @default("We only use your SoundCloud login to follow {artist} and like, repost, and comment on this track — nothing else. No email access. No newsletter. No stored fan profile.")
+  isConfigured    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isConfigured])
+}
