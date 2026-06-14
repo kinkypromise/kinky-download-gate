@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { postComment } from "../src/lib/sc-client";
 
-test("postComment creates a timed top-level track comment at the beginning of the track", async () => {
+test("postComment creates an untimed track comment", async () => {
   const calls: Array<{ url: string; init: RequestInit }> = [];
   const originalFetch = globalThis.fetch;
 
@@ -25,7 +25,9 @@ test("postComment creates a timed top-level track comment at the beginning of th
   assert.deepEqual(JSON.parse(String(calls[0].init.body)), {
     comment: {
       body: "Unlock comment",
-      timestamp: 0,
     },
   });
+
+  /** Ensure the comment body is never accidentally sent as a top-level key. */
+  assert.ok(!JSON.parse(String(calls[0].init.body)).body);
 });

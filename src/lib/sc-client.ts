@@ -5,7 +5,6 @@
 
 const SC_BASE = "https://api.soundcloud.com";
 const SC_AUTH="https://secure.soundcloud.com";
-const TRACK_COMMENT_TIMESTAMP_MS = 0;
 
 export interface TokenResponse {
   access_token: string;
@@ -104,7 +103,7 @@ export async function postComment(accessToken: string, trackUrn: string, body: s
       Authorization: `OAuth ${accessToken}`,
       "Content-Type": "application/json; charset=utf-8",
     },
-    body: JSON.stringify({ comment: { body, timestamp: TRACK_COMMENT_TIMESTAMP_MS } }),
+    body: JSON.stringify({ comment: { body } }),
   });
 
   if (res.ok) return;
