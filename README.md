@@ -1,433 +1,353 @@
 # SoundCloud Download Gate
 
-A self-hosted Next.js app that gives fans a free download in exchange for a SoundCloud follow, like, repost, and comment. One artist per deployment. Branding is configured through a first-run web wizard; SoundCloud credentials live only in `.env`.
+A self-hosted download gate: fans get a free track download in exchange for following you on SoundCloud and liking, reposting, and commenting on the track. One artist per deployment, all branding set up through a first-run web wizard — no code editing required.
 
-This README is written for people who have never self-hosted anything before. If you already know your way around a VPS, skip to the commands.
-
----
-
-## What you need
-
-- A domain name you control (e.g. `music.yourartist.com`)
-- A VPS (virtual private server) with Ubuntu or Debian
-- A SoundCloud account with an **Artist** or **Artist Pro** subscription
-- About 30 minutes
-
-If you do not have a VPS yet, any cheap Linux VPS works. You need root SSH access and a public IP.
+This repository is a **template**. Each artist runs their own copy on their own server with their own SoundCloud app. The guide below walks you through it from scratch; the [Reference](#reference) section at the end has the technical details.
 
 ---
 
-## The big picture
+## What it does
 
-1. You rent a VPS and point your domain to it.
-2. You install Node.js and a reverse proxy (nginx or Apache) on the VPS.
-3. You copy this app to the VPS and fill in your SoundCloud credentials.
-4. You start the app, open the first-run wizard, and set your artist name, password, and port.
-5. You create a "gate" for each track you want to give away.
-6. Fans visit the gate link, leave a comment, connect SoundCloud, and get a download.
+A fan opens your gate link, writes a short comment, and clicks **Unlock**. They log in with SoundCloud, and the server — acting once on their behalf — makes them follow you, like the track, repost it, and post their comment. Only then do they get a time-limited link to download the audio file, which is served from **your own server**, never from SoundCloud.
+
+The fan's SoundCloud login is used once and immediately thrown away. No fan data is stored — no emails, no profiles, nothing about who unlocked what (just an anonymous counter). It's clean by design, and it respects your fans.
 
 ---
 
-## Step 1 — Prepare your domain and VPS
+## A note on support
 
-### Point your domain to the VPS
+I built this to be self-explanatory: the guide below covers the whole setup, and the [Troubleshooting](#troubleshooting) section lists the errors people actually hit. I can't offer 1:1 support — but you don't need it.
 
-In your domain provider's DNS settings, create an A record:
+**Setting this up with an AI assistant?** Paste this README into any decent LLM (ChatGPT, Claude, Gemini), tell it where you're stuck, and include the exact error you're seeing. With this README as context, it can walk you through every step and decode almost any error message. That's genuinely the fastest way through — faster than waiting on me.
+
+---
+
+## Intended use & SoundCloud's terms
+
+This exists because the commercial gate services (Hypeddit and the like) run into SoundCloud's API terms: SoundCloud does **not** permit commercial services that provide download gates as a product. What SoundCloud **does** permit is using the API to promote **your own** content on **your own** account. That's exactly what this is built for.
+
+**Use this to gate your own tracks, on your own SoundCloud account, on your own server.** That's the legitimate, terms-compliant use.
+
+**Do not use it to run a gating service for other artists.** The moment you operate gates on behalf of others as a service, you're in the commercial use SoundCloud prohibits — the same line the big platforms are now hitting. Self-hosting doesn't change that; the use does.
+
+This decentralized, self-hosted approach is the most robust way to keep a working gate, because there's no central service for SoundCloud to shut off — each artist runs their own. That said, it still depends on SoundCloud's API, and SoundCloud can change their rules. This is the safest available option, not a permanent guarantee. Use it for what it's for and you're on solid ground.
+
+---
+
+# Setup guide
+
+Budget about an hour, maybe a bit more the first time. You don't need to be a programmer, but you'll need a little courage with the command line. If something jams, the [Troubleshooting](#troubleshooting) section near the end covers the usual suspects.
+
+## Before you start
+
+You'll need four things in place:
+
+- **A SoundCloud account with Artist Pro** — required to register a SoundCloud app. There's no way around this one.
+- **A small server (VPS)** with a persistent disk — somewhere like Hetzner, Netcup, or DigitalOcean, a few euros a month, smallest tier is fine. The gate stores its database and your audio files on disk, so normal web hosting and serverless platforms (Vercel, Netlify) **won't** work. If a VPS feels like too much, ask [YOUR NAME] — your gate might be able to run on my setup.
+- **A domain or subdomain** (e.g. `gate.yourname.com`) pointing at your server, secured with HTTPS. SoundCloud login requires an exact-match HTTPS address.
+- **Your track** as a WAV or MP3 file — what the fans will download.
+
+## Step 1 — Set up the server
+
+Any Linux works, but **Ubuntu Server 24.04 LTS** is the easiest path and what this guide assumes.
+
+**First, point your domain at the server.** In your domain provider's DNS settings, create an A record:
 
 ```
 Type: A
-Name: music (or @ for the root domain)
+Name: gate   (or @ for the root domain)
 Value: 1.2.3.4   <-- your VPS public IP
 TTL: 3600
 ```
 
-DNS can take a few minutes to a few hours to propagate. You can check it with:
+DNS can take a few minutes to a few hours to propagate. Check it with `nslookup gate.yourname.com` — when it returns your VPS IP, you're ready.
+
+**Then connect to the server** via SSH (`ssh root@1.2.3.4`, replacing the IP with yours; on Windows use PuTTY or Windows Terminal) and install Git, Docker, and Node:
 
 ```bash
-nslookup music.yourartist.com
+# System packages: Git + prerequisites
+sudo apt update
+sudo apt install -y git ca-certificates curl
+
+# Docker Engine + Compose plugin (official convenience script)
+curl -fsSL https://get.docker.com | sudo sh
+# let your user run docker without sudo (log out and back in afterwards)
+sudo usermod -aG docker $USER
+
+# Node.js 22 LTS via NodeSource (Ubuntu's own apt Node is too old for Next.js 16)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# verify
+node -v      # should be 20.9+ (22.x recommended)
+docker -v
 ```
 
-When it returns your VPS IP, you are ready.
+> Don't just run `sudo apt install nodejs` on its own — Ubuntu's default Node is too old and the app won't build. The NodeSource step above is what gets you a current version.
 
-### Connect to your VPS
+You don't install the app's own libraries (Next.js, Prisma, React, etc.) by hand — those come automatically in a later step.
 
-On macOS or Linux, open Terminal and run:
+## Step 2 — Set up the reverse proxy (HTTPS)
+
+The app itself runs on a private port (`3000`). A reverse proxy listens on the public ports `80`/`443`, forwards traffic to the app, and handles HTTPS. SoundCloud login **requires** HTTPS, so this isn't optional.
+
+Install nginx and certbot:
 
 ```bash
-ssh root@1.2.3.4
+sudo apt install -y nginx certbot python3-certbot-nginx
 ```
 
-Replace `1.2.3.4` with your VPS IP. On Windows, use PuTTY or the Windows Terminal.
-
-You may be asked for a password. Type it and press Enter. If your provider gave you an SSH key, use that instead.
-
-### Update the server
-
-Once you are logged in, run:
-
-```bash
-apt update && apt upgrade -y
-```
-
-This updates the server's software.
-
----
-
-## Step 2 — Install Node.js
-
-This app needs Node.js 22 or newer.
-
-```bash
-# Install NodeSource repository for Node 22
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt install -y nodejs
-
-# Check the versions
-node -v
-npm -v
-```
-
-You should see something like `v22.x.x` and `10.x.x`.
-
-Also install a few tools we need later:
-
-```bash
-apt install -y git sqlite3 curl
-```
-
----
-
-## Step 3 — Install and configure a reverse proxy
-
-The app runs on a private port like `3000`. nginx (or Apache) listens on the public ports `80` and `443` and forwards traffic to the app. It also handles HTTPS.
-
-### Option A — nginx (recommended)
-
-Install nginx and certbot for free HTTPS certificates:
-
-```bash
-apt install -y nginx certbot python3-certbot-nginx
-```
-
-Create a new site config:
-
-```bash
-nano /etc/nginx/sites-available/music.yourartist.com
-```
-
-Paste this inside (replace `music.yourartist.com` with your domain and `3000` with the port you will choose in the setup wizard):
+Create a site config (`sudo nano /etc/nginx/sites-available/gate.yourname.com`) and paste this, replacing the domain with yours:
 
 ```nginx
 server {
     listen 80;
-    server_name music.yourartist.com;
+    server_name gate.yourname.com;
 
-    client_max_body_size 220m;
+    client_max_body_size 220m;          # allow large WAV/MP3 uploads
 
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;     # real client IP for rate limiting
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
-Save with `Ctrl+O`, `Enter`, then `Ctrl+X`.
-
-Enable the site:
+Enable it and get a free HTTPS certificate:
 
 ```bash
-ln -s /etc/nginx/sites-available/music.yourartist.com /etc/nginx/sites-enabled/
-nginx -t
-systemctl reload nginx
+sudo ln -s /etc/nginx/sites-available/gate.yourname.com /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+sudo certbot --nginx -d gate.yourname.com    # certbot edits the config for HTTPS automatically
 ```
 
-Get a free HTTPS certificate:
+> Using Apache or a panel like Plesk instead? Same idea: proxy everything to `http://127.0.0.1:3000`, forward `X-Forwarded-For` / `X-Forwarded-Proto`, and raise the upload limit to at least 220 MB.
+
+## Step 3 — Copy the project
+
+On the template's GitHub page there's a green **"Use this template"** button at the top. Click it and GitHub creates a fresh copy of the project that's entirely yours, independent of the original. Give it a name like `my-gate`, then clone it onto your server:
 
 ```bash
-certbot --nginx -d music.yourartist.com
+git clone https://github.com/your-username/my-gate.git
+cd my-gate
 ```
 
-Follow the prompts. certbot will edit the nginx config for HTTPS automatically.
+> Use **"Use this template"**, not "Fork" — fork is for something else.
 
-### Option B — Apache
+## Step 4 — Register a SoundCloud app
 
-If your VPS uses Plesk or you prefer Apache, the idea is the same: create a vhost that proxies everything to `http://127.0.0.1:3000` and set `X-Forwarded-For` / `X-Forwarded-Proto` headers. Set `ProxyPass / http://127.0.0.1:3000/` inside the SSL vhost and raise any upload limits to at least 220 MB.
+This is the fiddliest part, so take your time. Go to the [SoundCloud developer page](https://developers.soundcloud.com) and create a new app:
 
----
+- **App name:** something like "[Your Artist Name] Gate"
+- **Website:** your SoundCloud profile is fine
+- **Redirect URI:** the delicate bit. Enter **exactly** `https://gate.yourname.com/callback` — your real domain, no trailing slash. Typos here are the single most common cause of failure later.
 
-## Step 4 — Get SoundCloud credentials
+SoundCloud then shows you a **Client ID** and a **Client Secret**. You'll need both in a moment. Treat the secret like a password — never share it, never put it in a screenshot.
 
-1. Log in to the SoundCloud account that owns the artist profile you want fans to follow.
-2. Go to `https://soundcloud.com/you/apps`.
-3. Click **New application**.
-4. Set the **Redirect URI** to exactly:
+Two traps worth knowing up front: SoundCloud allows only **one app per account**, and if you ever change your domain you must update the redirect URI here too.
 
-   ```
-   https://music.yourartist.com/callback
-   ```
+## Step 5 — Install and configure
 
-   If the form shows a **Use PKCE** option, leave it enabled.
-5. Copy the **Client ID** and **Client Secret**. Keep them secret.
+Install the dependencies, then create your config file:
 
-Important:
+```bash
+# install dependencies (needed before the setup scripts work)
+npm install
 
-- Create one SoundCloud app per artist. Do not reuse the same Client ID for multiple gates.
-- The redirect URI must match your `SC_REDIRECT_URI` character for character. A trailing slash mismatch will break login.
+# create your config from the template
+cp .env.example .env
+```
 
-### Find your artist URN
+Now open `.env` in an editor and fill in your values. You don't have to invent the secret keys — a helper script generates them:
 
-You need the internal SoundCloud identifier for the artist profile. Run this helper from the project folder later:
+```bash
+# generates the security secrets + admin password hash; paste its output into .env
+npx tsx scripts/setup-env.ts
+```
+
+Into `.env` you put: the **Client ID** and **Client Secret** from Step 3, your **domain** in `SC_REDIRECT_URI`, and the generated secrets. Leave `SC_ARTIST_URN` empty for now — that's the next step. (Every variable is explained in the [Reference](#environment-variables) below.)
+
+## Step 6 — Get your artist ID
+
+The gate needs to know whom fans should follow (you). A one-time script figures that out:
 
 ```bash
 npx tsx scripts/resolve-urn.ts
 ```
 
-Paste your artist profile URL when asked, for example `https://soundcloud.com/your-artist`. The script prints:
+It prints a link — open it, log in with **your own** SoundCloud account, then copy the `code` from the address bar back into the terminal. Paste the resulting URN (looks like `soundcloud:users:1234567`) into `SC_ARTIST_URN` in `.env`.
 
-```
-soundcloud:users:123456789
-```
+> When copying the code, take **only** the part between `code=` and `&state`. Grabbing the whole URL is a classic trip-up that causes an `invalid_request` error.
 
-Copy that value for the next step.
-
----
-
-## Step 5 — Install the app
-
-Back on the VPS, choose where to put the app. A common place is `/var/www`:
+## Step 7 — Start it
 
 ```bash
-cd /var/www
-git clone https://github.com/escadesign/esca-gate-template.git music-gate
-cd music-gate
+docker compose up --build -d
 ```
 
-Create the environment file:
+Docker builds and runs everything — the app, the database, the storage volumes. Give it a minute, then open `https://your-domain.com`.
 
-```bash
-cp .env.example .env
-nano .env
-```
+> Don't use `npm start` — this project builds in standalone mode and `next start` doesn't work with it. Docker is the way; for a manual start it'd be `node .next/standalone/server.js`.
 
-Fill in these values:
+## Step 8 — The first-run wizard
 
-```bash
-DATABASE_URL="file:./data/gate.db"
-SC_CLIENT_ID="your-client-id"
-SC_CLIENT_SECRET="your-client-secret"
-SC_REDIRECT_URI="https://music.yourartist.com/callback"
-SC_ARTIST_URN="soundcloud:users:your-artist-urn"
-SESSION_SECRET="replace-with-64-random-hex-characters"
-DOWNLOAD_TOKEN_SECRET="replace-with-64-different-random-hex-characters"
-STORAGE_DIR="./storage/downloads"
-PORT=3000
-```
+The first time you open the site, you land in a setup wizard. Here you set, all from the browser:
 
-Generate the two secrets with:
+- **Admin password** (gets you into the dashboard later)
+- **Artist name**, optional **label name**
+- **Instagram** and **Spotify** links — optional; leave blank to hide those buttons
+- **Accent color** — the color of the animated logo and buttons (pink, green, whatever's you)
+- **BPM** — the logo pulses to the beat, so set your typical tempo
 
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
+Then swap the logo: in the `public/` folder there's a placeholder `logo.svg`. Replace it with your own — same construction, a solid black rectangle with your wordmark/shape knocked out (transparent). Need help with that? Give me a shout.
 
-Run it twice and copy each output into `SESSION_SECRET` and `DOWNLOAD_TOKEN_SECRET`.
-
-`ADMIN_PASSWORD_HASH` can be left empty — the first-run wizard will store the password in the database.
-
-Save `.env` and exit nano.
-
-Install dependencies and build the app:
-
-```bash
-npm install
-npx prisma migrate deploy
-npx prisma generate
-npm run build
-```
-
-If this is the first time, `npx prisma migrate deploy` creates the SQLite database at `./data/gate.db`.
-
----
-
-## Step 6 — Start the app
-
-The simplest way is:
-
-```bash
-PORT=3000 npm start
-```
-
-But this stops when you close the terminal. For a real server, use a process manager like `pm2` or `systemd`.
-
-### Keep it running with pm2 (easiest)
-
-Install pm2 globally:
-
-```bash
-npm install -g pm2
-```
-
-Start the app:
-
-```bash
-pm2 start npm --name "music-gate" -- start
-pm2 save
-pm2 startup
-```
-
-Run the command that `pm2 startup` prints, so the app starts automatically after reboots.
-
-### If you want to host several gates on the same VPS
-
-Each gate needs its own directory, its own database, its own port, and its own SoundCloud app.
-
-Example:
-
-```bash
-cd /var/www
-git clone https://github.com/escadesign/esca-gate-template.git artist-a-gate
-git clone https://github.com/escadesign/esca-gate-template.git artist-b-gate
-```
-
-For each gate:
-
-1. Edit its `.env` with unique secrets and a unique `PORT` (for example `3000`, `3001`, `3002`).
-2. Build it.
-3. Create a separate nginx vhost that proxies to the matching port.
-4. During the first-run wizard, choose the same port you put in `.env`.
-
-The wizard writes the chosen port into `.env.local` automatically, but you must restart the app for the new port to take effect.
-
----
-
-## Step 7 — First-run wizard
-
-Open your domain in a browser:
-
-```
-https://music.yourartist.com/setup
-```
-
-You will see a form. Fill it in:
-
-- **Admin password**: at least 10 characters. This is the password you use to log in to `/admin`.
-- **Confirm password**: type it again.
-- **Artist name**: your artist name.
-- **Label name**: optional.
-- **Instagram URL**: optional, must start with `https://`.
-- **Spotify URL**: optional, must start with `https://`.
-- **Accent color**: click the color picker.
-- **BPM**: a number between 60 and 220. It controls the speed of the logo glitch animation.
-- **Runtime port**: the port the app listens on. Default is `3000`. Change this only if you are hosting multiple gates on the same VPS.
-
-Submit the form. The wizard stores everything in the database, writes the port to `.env.local`, and redirects you to `/admin`.
-
-After setup, `/setup` will automatically redirect to `/admin`.
-
----
-
-## Step 8 — Upload your logo (optional)
-
-By default the gate shows an animated glitch logo that loads `public/logo.svg` as a mask.
-
-You have two options:
-
-1. **Upload a logo through the admin UI**: go to `/admin/settings`, click **Upload logo**, and choose a PNG, JPG, WebP, or SVG file up to 2 MB. The uploaded logo replaces the glitch animation on both the admin page and the gate page.
-2. **Replace the SVG mask**: replace `public/logo.svg` with your own black-frame SVG. The logo shape should be transparent, the background should be black, and the viewBox should stay `0 0 1920 1080`.
-
----
+After the wizard you're taken to the dashboard, and the wizard locks itself. You can change all of this later under **Settings**.
 
 ## Step 9 — Create your first gate
 
-A gate is one track giveaway.
+Log into `/admin` with your password and create a release:
 
-1. Go to `https://music.yourartist.com/admin` and log in.
-2. Click **New gate**.
-3. Paste the SoundCloud track URL, for example `https://soundcloud.com/your-artist/track-name`.
-4. The URN field should auto-fill. If it does not, paste `soundcloud:tracks:123456789` manually.
-5. Upload the final WAV or MP3 file.
-6. Save the gate.
-7. Copy the gate link and share it.
+- the track title
+- the SoundCloud track URL (or ID)
+- the audio file to upload
 
-When a fan visits the link, they leave a comment, authorize SoundCloud, and the backend automatically follows your artist, likes and reposts the track, posts their comment, and gives them a 15-minute download link.
+Save it and you get a shareable link like `gate.yourname.com/gate/abc123`. That's what you give your fans — SoundCloud bio, stories, everywhere.
+
+## Step 10 — Test it yourself first
+
+Before handing out the link, open it in a **different browser or an incognito window** (so you're not logged in as yourself) and click all the way through — ideally with a second account. Does the account now follow you? Are the like, repost, and comment there? Does the file download? If yes, you're live. Hand out the link, and send me your gate link when it's up! 🖤
 
 ---
 
-## Step 10 — Keep the app alive
+# Reference
 
-After a reboot or if the app crashes, you want it to start again automatically.
+Technical details for when you want to look something up or dig deeper.
 
-If you used pm2, this is already handled after you ran `pm2 startup`.
+## Prerequisites
 
-To check the status:
+| Tool | Version | Why |
+|------|---------|-----|
+| Node.js | 20.9+ (LTS 20 or 22) | Required by Next.js 16 |
+| npm | ships with Node | Installs dependencies |
+| Docker + Compose | recent | Build/run, handles DB + volumes |
+| Git | any | Clone your template copy |
+
+App libraries (Next.js, Prisma, React, Three.js, bcrypt…) install via `npm install` from `package.json` — never by hand. The setup scripts run through `tsx` (a dev dependency), which is why `npm install` must come before them.
+
+## Environment variables
+
+| Variable | What it is | How to get it |
+|----------|------------|---------------|
+| `DATABASE_URL` | SQLite database location | Keep `file:./data/gate.db` for local dev. **In Docker this is overridden** by `docker-compose.yml` to an absolute path in the mounted volume — leave that as-is. |
+| `SC_CLIENT_ID` | SoundCloud app Client ID | From your registered SoundCloud app |
+| `SC_CLIENT_SECRET` | SoundCloud app Client Secret | Same place; treat like a password |
+| `SC_REDIRECT_URI` | OAuth callback URL | Must match the SoundCloud app's redirect URI exactly, e.g. `https://your-domain.com/callback` (no trailing slash) |
+| `SC_ARTIST_URN` | Your profile in URN form | Output of `scripts/resolve-urn.ts`, e.g. `soundcloud:users:1234567` |
+| `SESSION_SECRET` | Signs admin session cookies | `scripts/setup-env.ts` (or `openssl rand -base64 32`) |
+| `DOWNLOAD_TOKEN_SECRET` | Signs download tokens | Same |
+| `STORAGE_DIR` | Where uploaded audio is stored | Keep default `./storage/downloads` |
+| `ADMIN_PASSWORD_HASH` | *(optional)* admin password hash | Normally set by the wizard; only for manual/headless setups |
+
+> **bcrypt `$` gotcha:** if you ever paste a bcrypt hash into `.env` by hand, escape every `$` as `\$`. Next.js expands `.env` variables and will silently mangle an unescaped hash, so your password then never matches. Using the wizard avoids this entirely.
+
+## Running & developing
 
 ```bash
-pm2 status
-pm2 logs music-gate
+# Production (recommended)
+docker compose up --build -d     # start
+docker compose logs -f           # logs
+docker compose down              # stop, keeps data (see Data & persistence)
+
+# Local development
+npm install
+npx prisma migrate dev
+npx prisma generate
+npm run dev                      # http://localhost:3000
 ```
 
-To restart after a code update:
+For local dev, set `SC_REDIRECT_URI="http://localhost:3000/callback"` and add that same URL to your SoundCloud app's redirect URIs.
 
-```bash
-npm run build
-pm2 restart music-gate
+## Admin area
+
+- `/admin` — login
+- `/admin/dashboard` — list, activate/deactivate, and create gates
+- `/admin/settings` — branding, consent & privacy text, BPM, accent color, change password
+
+## How the fan flow works
+
+1. Fan opens `/gate/:id` — track artwork, animated logo, comment field.
+2. Fan writes a comment (1-280 chars) and clicks **Unlock Download via SoundCloud**.
+3. A native HTML form posts to `/api/auth/start`, which redirects to SoundCloud via OAuth 2.1 + PKCE.
+4. Fan authorizes; SoundCloud redirects back to `/callback`.
+5. Server loads the gate, then sequentially: **follow → like → repost → comment**. Follow/like/repost are required; a failed comment is best-effort and doesn't block the download.
+6. Fan is redirected to `/gate/:id?status=unlocked&dl=…` with a **15-minute** signed download link. Audio is streamed from your storage; there's no guessable direct file URL.
+
+## Data & persistence
+
+Two things must survive restarts and deploys — both are Docker volumes in `docker-compose.yml`:
+
+- **`./data`** → the SQLite database (settings, gates, unlock counts). In the container: `/app/data/gate.db`.
+- **`./storage`** → your uploaded audio files.
+
+`docker compose down` then `up` **without** the `-v` flag keeps these. **Never** pass `-v` to compose down unless you mean to wipe everything. Back up both folders. After a restart you should still be configured (land on `/admin`, not the wizard) and your gates should still be there.
+
+Behind nginx, raise the upload limit and forward the real client IP:
+
+```nginx
+client_max_body_size 220m;
+# also make nginx set/overwrite X-Forwarded-For so rate limiting sees the real IP
 ```
 
----
+## Security notes
 
-## Security checklist
-
-- Never commit `.env` or `.env.local` to git.
-- Never commit the database file `data/gate.db` or uploaded files in `storage/`.
-- Use a long, random `SESSION_SECRET` and `DOWNLOAD_TOKEN_SECRET`.
-- Keep the VPS operating system and Node.js updated.
-- Use HTTPS. certbot does this for free.
-
----
+- `/api/settings/public` returns **only** display fields. It never exposes the admin password hash, the `isConfigured` flag, or any `.env` value.
+- SoundCloud API calls use `Authorization: OAuth <token>` (not `Bearer`).
+- The fan's access token is used once for the four actions, then discarded. No fan PII is stored.
+- The posted comment is **untimed**, so each unlock appears as its own entry rather than threading under the first.
+- Download links are HMAC-signed, expire after 15 minutes, and stream through an authenticated route — never a public path.
+- Never commit `.env`, the contents of `data/`, or uploaded files. They're in `.gitignore`; keep them there.
 
 ## Troubleshooting
 
-### The setup page says "Setup has already been completed"
+> **Stuck on something not listed here?** Paste this README and your exact error message into an AI assistant (ChatGPT, Claude, Gemini) — with this file as context it can diagnose almost anything. That's the fastest path.
 
-The app is already configured. Visit `/admin` and log in instead. If you forgot the password, reset it by generating a new bcrypt hash and updating the database directly.
+- **`redirect_uri_mismatch` at login** — `SC_REDIRECT_URI` and the redirect URI in your SoundCloud app must match character-for-character (scheme, host, path, no trailing slash).
+- **Admin login always fails** — likely an unescaped `$` in a bcrypt hash in `.env`. Escape each `$` as `\$`, or just use the wizard.
+- **Data gone after restart** — the `data`/`storage` volumes aren't mounted right, or you ran `docker compose down -v`. Check the volume mounts and confirm `gate.db` shows up in the host `./data/` folder.
+- **`next start` 500s** — expected; this project uses standalone output. Use Docker or `node .next/standalone/server.js`.
+- **`resolve-urn.ts` fails with `invalid_request`** — you pasted too much of the URL. Paste only the value between `code=` and `&state`.
 
-### SoundCloud login fails with a redirect URI error
+## Project structure
 
-The `SC_REDIRECT_URI` in `.env` does not exactly match the redirect URI in your SoundCloud app. Check both character by character, including `https://` and any trailing slash.
-
-### Uploads fail with "413 Request Entity Too Large"
-
-Your reverse proxy limits upload size. For nginx, make sure `client_max_body_size 220m;` is set in the server block.
-
-### The logo does not show after upload
-
-The uploaded logo is stored in `storage/logos/`. Make sure the `storage/` directory is writable and that your reverse proxy does not block requests to `/storage/logos/*`.
-
-### I want to change the port after setup
-
-The port is stored in the database and in `.env.local`. You can see it in `/admin/settings`, but you must restart the app for a new port to take effect. To change it, edit `PORT` in `.env` or `.env.local`, rebuild if needed, and restart.
-
----
-
-## Environment variable reference
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | yes | SQLite path, e.g. `file:./data/gate.db` |
-| `SC_CLIENT_ID` | yes | SoundCloud app Client ID |
-| `SC_CLIENT_SECRET` | yes | SoundCloud app Client Secret |
-| `SC_REDIRECT_URI` | yes | Must match the app redirect URI exactly |
-| `SC_ARTIST_URN` | yes | URN of the artist profile fans will follow |
-| `SESSION_SECRET` | yes | 32-byte hex secret for admin cookies |
-| `DOWNLOAD_TOKEN_SECRET` | yes | 32-byte hex secret for download links |
-| `STORAGE_DIR` | yes | Writable directory for uploads |
-| `PORT` | yes | Port the app listens on, default `3000` |
-| `ADMIN_PASSWORD_HASH` | no | Optional fallback if you skip the wizard |
+```
+src/
+  app/
+    gate/[id]/        Fan-facing gate page
+    callback/         OAuth callback — runs the 4 SoundCloud actions
+    setup/            First-run wizard (gated until configured)
+    admin/            Login, dashboard, settings
+    api/
+      auth/start/     Begins the PKCE OAuth flow (POST)
+      download/       Streams the file against a signed token
+      settings/public Display-only branding for the gate page
+      setup/          Wizard submission
+      admin/          Login, gate CRUD, settings (session-protected)
+  components/
+    LogoGlitch.tsx    Animated, accent-colored logo (loads /logo.svg)
+  lib/
+    settings.ts       Reads the single Settings row (Node runtime)
+    session-edge.ts   Edge-safe session verification (no Prisma)
+    sc-client.ts      SoundCloud API calls
+    crypto.ts         PKCE, token signing, timing-safe compares
+scripts/
+  setup-env.ts        Generates secrets + admin hash
+  resolve-urn.ts      One-time: resolves your artist URN
+```
 
 ---
 
-## License
-
-MIT
+Built with Next.js (App Router), Prisma + SQLite, Three.js, and Docker.
