@@ -17,13 +17,14 @@ interface OEmbedData {
   title?: string;
 }
 
-interface PublicSettings {
+  interface PublicSettings {
   artistName: string;
   labelName: string;
   instagramUrl: string;
   spotifyUrl: string;
   accentColor: string;
   bpm: number;
+  logoUrl: string;
   consentText: string;
   privacyText: string;
 }
@@ -136,6 +137,7 @@ export default function GatePage() {
           spotifyUrl: "",
           accentColor: "#f22e8c",
           bpm: 160,
+          logoUrl: "",
           consentText: "By unlocking, you will follow {artist} on SoundCloud, like and repost this track, and post your comment.",
           privacyText: "We only use your SoundCloud login to follow {artist} and like, repost, and comment on this track — nothing else. No email access. No newsletter. No stored fan profile.",
         });
@@ -215,7 +217,18 @@ export default function GatePage() {
       <main className="relative w-full max-w-md gate-enter">
         <header className="space-y-4">
           <div className="-mx-5 h-36 sm:-mx-8 sm:h-44">
-            <LogoGlitch className="h-full w-full" bpm={bpm} accentColor={accentColor} />
+            {settings?.logoUrl ? (
+              <div className="flex h-full w-full items-center justify-center border border-neutral-800 bg-neutral-950/40 px-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={settings.logoUrl}
+                  alt={artistName}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ) : (
+              <LogoGlitch className="h-full w-full" bpm={bpm} accentColor={accentColor} />
+            )}
           </div>
           <div className="flex items-center justify-between font-mono text-xs uppercase tracking-[0.3em] text-neutral-500">
             <span>{artistName.toLowerCase()}</span>

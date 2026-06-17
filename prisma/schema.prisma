@@ -21,19 +21,20 @@ model Gate {
 }
 
 model Settings {
-  id              Int      @id @default(1)
-  artistName      String   @default("Your Artist Name")
-  labelName       String   @default("")
-  instagramUrl    String   @default("")
-  spotifyUrl      String   @default("")
-  accentColor     String   @default("#f22e8c")
-  bpm             Int      @default(160)
-  consentText     String   @default("By unlocking, you will follow {artist} on SoundCloud, like and repost this track, and post your comment.")
-  privacyText     String   @default("We only use your SoundCloud login to follow {artist} and like, repost, and comment on this track — nothing else. No email access. No newsletter. No stored fan profile.")
-  isConfigured    Boolean  @default(false)
-  adminPasswordHash String @default("")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                Int      @id @default(1)
+  artistName        String   @default("Your Artist Name")
+  labelName         String   @default("")
+  instagramUrl      String   @default("")
+  spotifyUrl        String   @default("")
+  accentColor       String   @default("#f22e8c")
+  bpm               Int      @default(160)
+  consentText       String   @default("By unlocking, you will follow {artist} on SoundCloud, like and repost this track, and post your comment.")
+  privacyText       String   @default("We only use your SoundCloud login to follow {artist} and like, repost, and comment on this track — nothing else. No email access. No newsletter. No stored fan profile.")
+  logoUrl           String   @default("")
+  isConfigured      Boolean  @default(false)
+  adminPasswordHash String   @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([isConfigured])
 }
