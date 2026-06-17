@@ -119,14 +119,16 @@ The database and uploaded audio files live in the `./data` and `./storage` direc
    - Artist name
    - Label name (optional)
    - Instagram URL (optional)
+   - Spotify URL (optional)
    - Accent color
    - BPM (drives the logo glitch animation)
+   - Runtime port (default 3000; use a different port for each gate on the same VPS)
 3. Submit. The wizard creates the admin user, stores the branding, and redirects to `/admin`.
 4. After setup, `/setup` automatically redirects to `/admin`.
 
-### Replace the logo
+### Logo
 
-The glitch animation loads `public/logo.svg` as an alpha mask. Replace it with your own black-frame SVG where the logo shape is transparent and the background is black. Keep the viewBox at `0 0 1920 1080` for the shader scaling to match.
+You can upload a custom logo (PNG, JPG, WebP, or SVG, max 2 MB) from `/admin/settings`. When a logo is uploaded, it replaces the glitch animation on both the admin and gate pages. To use the built-in glitch logo instead, remove the uploaded logo in settings or replace `public/logo.svg` with your own black-frame SVG mask (viewBox `0 0 1920 1080`).
 
 ---
 
