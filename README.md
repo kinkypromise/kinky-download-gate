@@ -172,16 +172,12 @@ LimitRequestBody 230686720
 
 **HTTPS for either case:** use Plesk's built-in Let's Encrypt — **Domains → your-domain → SSL/TLS Certificates → Install a free basic certificate**. Plesk renews it automatically. Do this *before* testing the SoundCloud login, since it requires HTTPS.
 
-## Step 3 — Copy the project
-
-On the template's GitHub page there's a green **"Use this template"** button at the top. Click it and GitHub creates a fresh copy of the project that's entirely yours, independent of the original. Give it a name like `my-gate`, then clone it onto your server:
+## Step 3 — Clone the project
 
 ```bash
-git clone https://github.com/your-username/my-gate.git
-cd my-gate
+git clone https://github.com/kinkypromise/kinky-download-gate.git
+cd kinky-download-gate
 ```
-
-> Use **"Use this template"**, not "Fork" — fork is for something else.
 
 ## Step 4 — Register a SoundCloud app
 
