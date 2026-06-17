@@ -12,6 +12,7 @@ interface SettingsForm {
   accentColor: string;
   bpm: number;
   logoUrl: string;
+  port: number;
   consentText: string;
   privacyText: string;
   newPassword: string;
@@ -27,6 +28,7 @@ export default function AdminSettingsPage() {
     accentColor: "#f22e8c",
     bpm: 160,
     logoUrl: "",
+    port: 3000,
     consentText: "",
     privacyText: "",
     newPassword: "",
@@ -300,6 +302,21 @@ export default function AdminSettingsPage() {
                   required
                 />
               </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-4 border border-neutral-800 p-5">
+            <legend className="px-2 font-mono text-xs uppercase tracking-[0.24em] text-neutral-500">Server</legend>
+
+            <div className="space-y-2">
+              <span className="font-mono text-xs uppercase tracking-[0.24em] text-neutral-500">runtime port</span>
+              <div className="flex items-center justify-between border border-neutral-800 bg-neutral-950 px-4 py-3">
+                <span className="font-mono text-base text-neutral-100">{form.port}</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600">restart required to change</span>
+              </div>
+              <p className="text-sm text-neutral-500">
+                Set during first-run setup. To host multiple gates on the same VPS, give each gate a unique port and restart the server.
+              </p>
             </div>
           </fieldset>
 

@@ -14,6 +14,7 @@ export default function SetupPage() {
     spotifyUrl: "",
     accentColor: "#f22e8c",
     bpm: 160,
+    port: 3000,
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,6 +43,10 @@ export default function SetupPage() {
       setError("BPM must be between 60 and 220.");
       return;
     }
+    if (form.port < 1024 || form.port > 65535) {
+      setError("Port must be between 1024 and 65535.");
+      return;
+    }
     if (form.instagramUrl && !form.instagramUrl.startsWith("https://")) {
       setError("Instagram URL must start with https://.");
       return;
@@ -63,6 +68,7 @@ export default function SetupPage() {
         spotifyUrl: form.spotifyUrl,
         accentColor: form.accentColor,
         bpm: form.bpm,
+        port: form.port,
       }),
     });
     setLoading(false);
@@ -179,6 +185,25 @@ export default function SetupPage() {
                 />
               </label>
             </div>
+          </fieldset>
+
+          <fieldset className="space-y-4 border border-neutral-800 p-4">
+            <legend className="px-2 font-mono text-xs uppercase tracking-[0.24em] text-neutral-500">Server</legend>
+            <label className="block space-y-2">
+              <span className="font-mono text-xs uppercase tracking-[0.24em] text-neutral-500">runtime port</span>
+              <input
+                type="number"
+                min={1024}
+                max={65535}
+                value={form.port}
+                onChange={(e) => updateField("port", Number(e.target.value))}
+                className="w-full border border-neutral-800 bg-neutral-950 px-4 py-3 text-neutral-100 outline-none transition-colors focus:border-neutral-300"
+                required
+              />
+            </label>
+            <p className="text-sm text-neutral-500">
+              The port this gate listens on. Use a different port for each gate when hosting multiple gates on the same VPS. The server must be restarted after setup for the change to take effect.
+            </p>
           </fieldset>
 
           <p className="text-sm text-neutral-500">

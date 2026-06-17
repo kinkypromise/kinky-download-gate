@@ -17,6 +17,8 @@ export async function GET() {
     spotifyUrl: settings.spotifyUrl,
     accentColor: settings.accentColor,
     bpm: settings.bpm,
+    logoUrl: settings.logoUrl,
+    port: settings.port,
     consentText: settings.consentText,
     privacyText: settings.privacyText,
   });
