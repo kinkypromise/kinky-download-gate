@@ -89,7 +89,11 @@ You don't install the app's own libraries (Next.js, Prisma, React, etc.) by hand
 
 ## Step 2 — Set up the reverse proxy (HTTPS)
 
-The app itself runs on a private port (`3000`). A reverse proxy listens on the public ports `80`/`443`, forwards traffic to the app, and handles HTTPS. SoundCloud login **requires** HTTPS, so this isn't optional.
+The app runs on a private port (`3000` by default); a reverse proxy listens on the public ports `80`/`443`, forwards traffic to it, and handles HTTPS. SoundCloud login **requires** HTTPS, so this isn't optional.
+
+> **Running more than one gate on this server?** Each gate needs its own port. Pick one here and remember it — you'll set the same number as `HOST_PORT` in Step 5. The examples below use `3000`; for a second gate use `3001`, a third `3002`, and so on. See [Running multiple gates](#running-multiple-gates-on-one-server) in the Reference for the full pattern.
+
+> **Heads up:** after this step your domain will show an error page (502 / "bad gateway") until you actually start the app in Step 7. That's expected — the proxy is forwarding to a port where nothing is listening yet. Don't worry about it until Step 7.
 
 Install nginx and certbot:
 
@@ -107,7 +111,7 @@ server {
     client_max_body_size 220m;          # allow large WAV/MP3 uploads
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3000;          # match your HOST_PORT (3001, 3002, … for additional gates)
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;     # real client IP for rate limiting
@@ -125,7 +129,48 @@ sudo systemctl reload nginx
 sudo certbot --nginx -d gate.yourname.com    # certbot edits the config for HTTPS automatically
 ```
 
-> Using Apache or a panel like Plesk instead? Same idea: proxy everything to `http://127.0.0.1:3000`, forward `X-Forwarded-For` / `X-Forwarded-Proto`, and raise the upload limit to at least 220 MB.
+> Using Apache or a panel like Plesk instead? Same idea: proxy everything to `http://127.0.0.1:3000`, forward `X-Forwarded-For` / `X-Forwarded-Proto`, and raise the upload limit to at least 220 MB. If you're on **Plesk**, see the dedicated section just below.
+
+### If you use Plesk instead of command-line nginx
+
+Plesk users don't edit config files by hand — you do it in the panel. The app itself still runs via Docker (Steps 3–7 below); Plesk only handles the public domain, HTTPS, and forwarding traffic to the app's port.
+
+Plesk domains come in two flavors, and which one you have decides where you paste the proxy config. Open **Domains → your-domain → Hosting & DNS → Apache & nginx Settings** and look at what's there:
+
+**Case A — there's an "nginx settings" section with a "Proxy mode" checkbox:**
+
+1. **Uncheck "Proxy mode"** and click **Apply**. This is the most common thing people miss — if you leave it on, you'll get a `duplicate location "/"` error when you add the directives below.
+2. In **Additional nginx directives**, paste:
+   ```nginx
+   client_max_body_size 220m;
+   location / {
+       proxy_pass http://127.0.0.1:3000;
+       proxy_set_header Host $host;
+       proxy_set_header X-Forwarded-For $remote_addr;
+       proxy_set_header X-Forwarded-Proto $scheme;
+   }
+   ```
+3. Click **Apply**.
+
+**Case B — there's only "Additional Apache directives" (two boxes, HTTP and HTTPS), no nginx section:**
+
+This is a pure-Apache domain. Use Apache's proxy syntax instead. Paste the **same block into both boxes** ("Additional directives for HTTP" *and* "Additional directives for HTTPS"), so it works before and after the certificate is installed:
+
+```apache
+ProxyPreserveHost On
+ProxyPass / http://127.0.0.1:3000/
+ProxyPassReverse / http://127.0.0.1:3000/
+RequestHeader set X-Forwarded-Proto "https"
+LimitRequestBody 230686720
+```
+
+- `ProxyPass` / `ProxyPassReverse` forward everything to the app on port 3000 (change the port if you changed it).
+- `LimitRequestBody 230686720` raises the upload limit to ~220 MB so large WAV/MP3 files go through (the number is bytes).
+- Click **OK** to save and reload Apache.
+
+> For this to work, Apache needs its `proxy` and `proxy_http` modules enabled — on Plesk they normally are. If the site shows a Plesk default page or a 500 after saving, that's the first thing to check (under **Tools & Settings → Apache modules**), along with confirming the app is actually running on port 3000 (`docker compose ps`).
+
+**HTTPS for either case:** use Plesk's built-in Let's Encrypt — **Domains → your-domain → SSL/TLS Certificates → Install a free basic certificate**. Plesk renews it automatically. Do this *before* testing the SoundCloud login, since it requires HTTPS.
 
 ## Step 3 — Copy the project
 
@@ -169,7 +214,11 @@ Now open `.env` in an editor and fill in your values. You don't have to invent t
 npx tsx scripts/setup-env.ts
 ```
 
-Into `.env` you put: the **Client ID** and **Client Secret** from Step 3, your **domain** in `SC_REDIRECT_URI`, and the generated secrets. Leave `SC_ARTIST_URN` empty for now — that's the next step. (Every variable is explained in the [Reference](#environment-variables) below.)
+Into `.env` you put: the **Client ID** and **Client Secret** from Step 3, your **domain** in `SC_REDIRECT_URI`, and the generated secrets. Leave `SC_ARTIST_URN` empty for now — that's the next step.
+
+**If you chose a port other than 3000 in Step 2** (because another gate already uses 3000), set the matching `HOST_PORT` here, e.g. `HOST_PORT=3001`. It must be the same number your reverse proxy forwards to. If this is your only gate, leave it at `3000`.
+
+(Every variable is explained in the [Reference](#environment-variables) below.)
 
 ## Step 6 — Get your artist ID
 
@@ -250,6 +299,7 @@ App libraries (Next.js, Prisma, React, Three.js, bcrypt…) install via `npm ins
 | `SESSION_SECRET` | Signs admin session cookies | `scripts/setup-env.ts` (or `openssl rand -base64 32`) |
 | `DOWNLOAD_TOKEN_SECRET` | Signs download tokens | Same |
 | `STORAGE_DIR` | Where uploaded audio is stored | Keep default `./storage/downloads` |
+| `HOST_PORT` | The port this gate listens on, on the host | Default `3000`. Give each gate on a shared server its own port (3000, 3001, …) and forward the reverse proxy to it. |
 | `ADMIN_PASSWORD_HASH` | *(optional)* admin password hash | Normally set by the wizard; only for manual/headless setups |
 
 > **bcrypt `$` gotcha:** if you ever paste a bcrypt hash into `.env` by hand, escape every `$` as `\$`. Next.js expands `.env` variables and will silently mangle an unescaped hash, so your password then never matches. Using the wizard avoids this entirely.
@@ -270,6 +320,26 @@ npm run dev                      # http://localhost:3000
 ```
 
 For local dev, set `SC_REDIRECT_URI="http://localhost:3000/callback"` and add that same URL to your SoundCloud app's redirect URIs.
+
+## Running multiple gates on one server
+
+You can host several gates (your own, or for different artists) on one VPS. Each one is a **separate clone in its own folder** with its own `.env`, its own port, and its own domain. The key is that nothing is shared between them:
+
+```
+~/gates/
+  artist-a/        # git clone #1 — HOST_PORT=3000, gate-a.com
+  artist-b/        # git clone #2 — HOST_PORT=3001, gate-b.com
+  artist-c/        # git clone #3 — HOST_PORT=3002, gate-c.com
+```
+
+For each gate:
+
+1. Clone the template into its own folder and `cd` into it.
+2. In its `.env`, set a unique `HOST_PORT` (3000, 3001, 3002, …) and that gate's own `SC_*` values (each artist registers their own SoundCloud app).
+3. Give each gate its own domain and a reverse-proxy config that forwards to that gate's `HOST_PORT` (Step 2 — repeat per domain).
+4. `docker compose up -d` in each folder. Because each folder has its own `data/` and `storage/`, their databases and audio files never collide.
+
+Because each folder is its own Docker Compose project, they start, stop, and update independently. One artist re-deploying doesn't touch the others.
 
 ## Admin area
 
@@ -319,6 +389,8 @@ client_max_body_size 220m;
 - **Admin login always fails** — likely an unescaped `$` in a bcrypt hash in `.env`. Escape each `$` as `\$`, or just use the wizard.
 - **Data gone after restart** — the `data`/`storage` volumes aren't mounted right, or you ran `docker compose down -v`. Check the volume mounts and confirm `gate.db` shows up in the host `./data/` folder.
 - **`next start` 500s** — expected; this project uses standalone output. Use Docker or `node .next/standalone/server.js`.
+- **502 / "bad gateway" after setting up the proxy** — normal if the app isn't running yet (before Step 7), or the proxy points at the wrong port. Confirm the container is up (`docker compose ps`) and that the proxy's port matches your `HOST_PORT`.
+- **Second gate won't start / port already in use** — two gates can't share a port. Give each its own `HOST_PORT` in its own `.env`, in its own folder.
 - **`resolve-urn.ts` fails with `invalid_request`** — you pasted too much of the URL. Paste only the value between `code=` and `&state`.
 
 ## Project structure
